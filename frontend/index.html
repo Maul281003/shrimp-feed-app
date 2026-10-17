@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d6efd" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="stylesheet" href="/style.css" />
+  <title>Pakani</title>
+
+  <!-- Redirect otomatis berdasarkan status login -->
+  <script>
+    (function () {
+      var token = localStorage.getItem("token");
+      if (!token) {
+        window.location.replace("/login.html");
+      } else {
+        window.location.replace("/dashboard.html");
+      }
+    })();
+  </script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>🦐 Pakani</h1>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Memuat…</h2>
+      <p>Mengarahkan Anda ke halaman yang tepat.</p>
+      <p class="hint">
+        Jika tidak berpindah otomatis,
+        <a href="/login.html">klik di sini</a>.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

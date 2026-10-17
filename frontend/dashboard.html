@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B1120" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Dashboard — Pakani</title>
+  <script>
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</head>
+<body>
+
+  <header class="top-header">
+    <div class="user-info">
+      <h1 id="greet-name">Hai, Owner!</h1>
+      <p>Pantau tambakmu hari ini</p>
+    </div>
+    <div class="avatar-box" id="logout" title="Keluar">
+      <i class="fa-solid fa-power-off"></i>
+    </div>
+  </header>
+
+  <div class="hero-card">
+    <h2>Siap panen besar?</h2>
+    <p>Kelola pakan dan pantau udangmu secara real-time.</p>
+    <button class="hero-btn" onclick="openModal('modal-pair')">Tambah Alat +</button>
+  </div>
+
+  <!-- MENU AKSI CEPAT -->
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 1.5rem; margin-bottom: 1.5rem;">
+    <div class="stat-card" onclick="openModal('modal-farm')" style="cursor: pointer; align-items: center; text-align: center; padding: 1rem 0.5rem;">
+      <div class="stat-icon orange" style="margin: 0 auto 0.5rem; width: 45px; height: 45px;"><i class="fa-solid fa-water"></i></div>
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Tambah Tambak</div>
+    </div>
+    
+    <div class="stat-card" onclick="openModal('modal-stock')" style="cursor: pointer; align-items: center; text-align: center; padding: 1rem 0.5rem;">
+      <div class="stat-icon cyan" style="margin: 0 auto 0.5rem; width: 45px; height: 45px;"><i class="fa-solid fa-box"></i></div>
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Tambah Stok</div>
+    </div>
+
+    <div class="stat-card" onclick="openModal('modal-sampling')" style="cursor: pointer; align-items: center; text-align: center; padding: 1rem 0.5rem;">
+      <div class="stat-icon green" style="margin: 0 auto 0.5rem; width: 45px; height: 45px;"><i class="fa-solid fa-flask"></i></div>
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Sampling</div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon cyan"><i class="fa-solid fa-chart-line"></i></div>
+      <div class="stat-val" id="val-fcr">0.0</div>
+      <div class="stat-lbl">Nilai FCR</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue"><i class="fa-solid fa-fish"></i></div>
+      <div class="stat-val" id="val-biomass">0</div>
+      <div class="stat-lbl">Biomassa (kg)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange"><i class="fa-solid fa-wheat-awn"></i></div>
+      <div class="stat-val" id="val-feed">0</div>
+      <div class="stat-lbl">Total Pakan (kg)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="fa-solid fa-microchip"></i></div>
+      <div class="stat-val" id="val-devices">0</div>
+      <div class="stat-lbl">Alat Online</div>
+    </div>
+  </div>
+
+  <div class="charts-section">
+    <div class="chart-card">
+      <h3>Konsumsi Pakan 7 Hari <i class="fa-solid fa-ellipsis" style="color: var(--text-muted);"></i></h3>
+      <div class="chart-container">
+        <canvas id="feedChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Grafik Distribusi Bak (Hopper) Per Alat -->
+    <div class="chart-card">
+      <h3>Stok di Bak Penampungan <i class="fa-solid fa-box" style="color: var(--text-muted);"></i></h3>
+      <div id="hopper-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px;">
+        <!-- Diisi oleh JS -->
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <span>Alat Terpasang</span>
+    <i class="fa-solid fa-microchip" style="color: var(--cyan);"></i>
+  </div>
+  <div id="devices" class="list"></div>
+
+  <nav class="bottom-nav">
+    <div class="nav-icon active"><i class="fa-solid fa-house"></i></div>
+    <div class="btn-fab" onclick="openModal('modal-pair')"><i class="fa-solid fa-plus"></i></div>
+    <div class="nav-icon" onclick="window.location.href='/settings.html'"><i class="fa-solid fa-gear"></i></div>
+  </nav>
+
+  <!-- MODALS -->
+  <div id="modal-farm" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Tambah Tambak</h3>
+      <label class="field"><span>Nama Tambak</span><input type="text" id="inp-farm-name" placeholder="Cth: Tambak Vaname"></label>
+      <button id="btn-save-farm" class="btn-primary">Simpan</button>
+      <button class="btn-secondary btn-close-modal mt-1">Batal</button>
+    </div>
+  </div>
+
+  <div id="modal-stock" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Tambah Stok Pakan</h3>
+      <label class="field"><span>Merek Pakan</span><input type="text" id="inp-stock-brand" placeholder="Cth: Pelet 781"></label>
+      <label class="field"><span>Jumlah (kg)</span><input type="number" id="inp-stock-qty" value="1000"></label>
+      <label class="field"><span>Batas Min (kg)</span><input type="number" id="inp-stock-min" value="100"></label>
+      <button id="btn-save-stock" class="btn-primary">Simpan</button>
+      <button class="btn-secondary btn-close-modal mt-1">Batal</button>
+    </div>
+  </div>
+
+  <div id="modal-sampling" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Input Sampling</h3>
+      <label class="field"><span>ABW (gram)</span><input type="number" id="inp-abw" step="0.1" value="10"></label>
+      <label class="field"><span>Populasi (Ekor)</span><input type="number" id="inp-pop" value="50000"></label>
+      <button id="btn-save-sampling" class="btn-primary">Simpan</button>
+      <button class="btn-secondary btn-close-modal mt-1">Batal</button>
+    </div>
+  </div>
+
+  <div id="modal-pair" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Pasang Alat Baru</h3>
+      <label class="field"><span>Serial Number (SN)</span><input type="text" id="inp-pair-serial" placeholder="PKN-2026-000001"></label>
+      <button id="btn-save-pair" class="btn-primary">Pasang Alat</button>
+      <button class="btn-secondary btn-close-modal mt-1">Batal</button>
+    </div>
+  </div>
+
+  <!-- MODAL PERINGATAN PAKAN HABIS -->
+  <div id="modal-empty-alert" class="modal-overlay">
+    <div class="modal-content" style="border: 2px solid var(--red);">
+      <div style="text-align: center; margin-bottom: 1rem;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size: 3.5rem; color: var(--red); animation: pulse 1.5s infinite;"></i>
+      </div>
+      <h3 style="color: var(--red); margin-bottom: 0.5rem;">Peringatan Dini!</h3>
+      <p style="text-align: center; color: var(--text-main); margin-bottom: 1rem; font-weight: 500;">
+        Stok pakan di bak penampungan berikut telah <strong style="color: var(--red);">HABIS</strong>. Segera isi ulang agar udang tidak kelaparan:
+      </p>
+      <div id="empty-device-list" style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; max-height: 150px; overflow-y: auto;">
+        <!-- Diisi oleh JS -->
+      </div>
+      <button onclick="closeModals()" class="btn-primary" style="background: var(--red); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">Mengerti</button>
+    </div>
+  </div>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>

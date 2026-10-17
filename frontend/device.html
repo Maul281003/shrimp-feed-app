@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B1120" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Detail Alat — Pakani</title>
+  
+  <!-- Script Cek Tema Awal -->
+  <script>
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</head>
+<body>
+  <header class="top-header">
+    <div class="avatar-box" onclick="window.location.href='/dashboard.html'" style="width: 45px; height: 45px;">
+      <i class="fa-solid fa-arrow-left"></i>
+    </div>
+    <div class="user-info" style="text-align: right;">
+      <h1 id="device-title" style="font-size: 1.2rem;">Detail</h1>
+      <p>Kendali Alat</p>
+    </div>
+  </header>
+  
+  <main style="padding: 0 1.5rem;">
+    
+    <!-- Status Card -->
+    <div class="stat-card" style="text-align: center; padding: 2rem 1rem;">
+      <div class="stat-icon cyan" style="margin: 0 auto 1rem; width: 70px; height: 70px; font-size: 2rem;">
+        <i class="fa-solid fa-microchip"></i>
+      </div>
+      <h2 id="dev-serial" style="font-size: 1.3rem; margin-bottom: 0.5rem; font-weight: 800; color: var(--text-main);">...</h2>
+      
+      <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 0.5rem;">
+        <span class="dot offline" id="dev-dot"></span>
+        <span id="dev-status" style="font-weight: 800; color: var(--text-main);">...</span>
+      </div>
+      <p class="muted" style="margin: 0;">Online: <span id="dev-last-seen">...</span></p>
+      
+      <div style="display: flex; gap: 10px; width: 100%; margin-top: 1.5rem;">
+        <button id="btn-feed" class="btn-primary" style="flex: 1;"><i class="fa-solid fa-wheat-awn"></i> Pakan</button>
+        <button id="btn-online" class="btn-secondary" style="flex: 1;"><i class="fa-solid fa-wifi"></i> Online</button>
+      </div>
+      <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px;">
+        <button id="btn-edit-name" class="btn-secondary" style="flex: 1;"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button id="btn-unpair" class="btn-danger" style="flex: 1;"><i class="fa-solid fa-link-slash"></i> Unpair</button>
+      </div>
+      <p id="msg" class="msg" style="color: var(--cyan); margin-top: 1rem; font-weight: 600;"></p>
+    </div>
+
+    <!-- Jadwal -->
+    <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
+      <span>Jadwal Pakan</span>
+      <i class="fa-solid fa-clock" style="color: var(--cyan);"></i>
+    </div>
+    <div id="schedules" class="list" style="padding: 0; margin-bottom: 1.5rem;"></div>
+    
+    <form id="form-schedule" class="stat-card" style="margin-bottom: 1.5rem;">
+      <div style="display: flex; gap: 10px;">
+        <label class="field" style="flex: 1;"><span>Jam</span><input type="number" id="sch-hour" min="0" max="23" required value="8"></label>
+        <label class="field" style="flex: 1;"><span>Menit</span><input type="number" id="sch-minute" min="0" max="59" required value="0"></label>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <label class="field" style="flex: 1;"><span>Motor (s)</span><input type="number" id="sch-motor" min="1" max="30" required value="4"></label>
+        <label class="field" style="flex: 1;"><span>Blower (s)</span><input type="number" id="sch-blower" min="0" max="10" required value="2"></label>
+      </div>
+      <button type="submit" class="btn-secondary" style="width: 100%;"><i class="fa-solid fa-plus"></i> Tambah</button>
+    </form>
+
+    <!-- Riwayat -->
+    <div class="section-title" style="padding: 0;">
+      <span>Riwayat Pakan</span>
+      <i class="fa-solid fa-list-check" style="color: var(--cyan);"></i>
+    </div>
+    <div id="logs" class="list" style="padding: 0; margin-bottom: 2rem;"></div>
+
+  </main>
+
+  <!-- MODAL EDIT NAMA -->
+  <div id="modal-name" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Edit Nama Alat</h3>
+      <label class="field"><span>Nama Baru</span><input type="text" id="inp-new-name"></label>
+      <button id="btn-save-name" class="btn-primary">Simpan</button>
+      <button class="btn-secondary btn-close-modal mt-1">Batal</button>
+    </div>
+  </div>
+
+  <script src="/device.js"></script>
+</body>
+</html>

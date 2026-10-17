@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B1120" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Setelan — Pakani</title>
+  <!-- Script Cek Tema Awal -->
+  <script>
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</head>
+<body>
+
+  <header class="top-header">
+    <div class="avatar-box" onclick="window.location.href='/dashboard.html'" style="width: 45px; height: 45px;">
+      <i class="fa-solid fa-arrow-left"></i>
+    </div>
+    <div class="user-info" style="text-align: right;">
+      <h1 style="font-size: 1.2rem;">Setelan</h1>
+      <p>Preferensi & Akun</p>
+    </div>
+  </header>
+  
+  <main style="padding: 0 1.5rem; padding-bottom: 40px;">
+    
+    <!-- TAMPILAN (THEME TOGGLE) -->
+    <div class="section-title" style="padding: 0; margin-top: 1rem;">
+      <span>Tampilan</span>
+      <i class="fa-solid fa-palette" style="color: var(--cyan);"></i>
+    </div>
+    <div class="stat-card" style="flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <div>
+        <div class="item-title" style="font-size: 1rem;">Mode Tema</div>
+        <div class="item-sub">Ubah ke mode Gelap / Terang</div>
+      </div>
+      <label class="theme-switch">
+        <input type="checkbox" id="theme-toggle" onchange="toggleTheme(this.checked)">
+        <span class="theme-slider">
+          <i class="fa-solid fa-sun" style="color: #F59E0B;"></i>
+          <i class="fa-solid fa-moon" style="color: #8B5CF6;"></i>
+        </span>
+      </label>
+    </div>
+
+    <!-- Kartu Profil -->
+    <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
+      <span>Profil Anda</span>
+      <i class="fa-solid fa-user" style="color: var(--cyan);"></i>
+    </div>
+    <div class="stat-card" style="flex-direction: row; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+      <div class="stat-icon cyan" style="width: 60px; height: 60px; font-size: 2rem; border-radius: 50%; margin: 0;">
+        <i class="fa-solid fa-user-astronaut"></i>
+      </div>
+      <div>
+        <h2 id="user-name" style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.2rem; color: var(--text-main);">Memuat...</h2>
+        <p id="user-email" style="font-size: 0.9rem; color: var(--text-muted);">...</p>
+        <p id="user-phone" style="font-size: 0.85rem; color: var(--text-muted);">...</p>
+      </div>
+    </div>
+
+    <!-- Daftar Tambak -->
+    <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
+      <span>Daftar Tambak</span>
+      <i class="fa-solid fa-map-location-dot" style="color: var(--cyan);"></i>
+    </div>
+    <div id="farm-list" class="list" style="padding: 0; margin-bottom: 1.5rem;"></div>
+
+    <!-- Tombol Logout -->
+    <button id="btn-logout" class="btn-danger" style="margin-top: 1rem; padding: 1.2rem;">
+      <i class="fa-solid fa-right-from-bracket"></i> Keluar dari Akun
+    </button>
+
+    <p class="muted" style="margin-top: 2rem;">Pakani App v0.3.0<br>Dibuat untuk Petambak Indonesia 🦐</p>
+
+  </main>
+
+  <script>
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "/login.html";
+    
+    const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+
+    // -- Logika Toggle Theme --
+    const themeToggle = document.getElementById("theme-toggle");
+    if (localStorage.getItem('theme') === 'light') {
+      themeToggle.checked = true;
+    }
+
+    function toggleTheme(isLight) {
+      if (isLight) {
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+    async function api(path) {
+      const res = await fetch(`/api/v1${path}`, { headers });
+      if (res.status === 401) { localStorage.removeItem("token"); window.location.href = "/login.html"; return null; }
+      return res;
+    }
+
+    document.getElementById("btn-logout").onclick = () => {
+      if(confirm("Apakah Anda yakin ingin keluar?")) {
+        localStorage.removeItem("token");
+        window.location.href = "/login.html";
+      }
+    };
+
+    async function loadSettings() {
+      const meRes = await api("/auth/me");
+      if (meRes) {
+        const me = await meRes.json();
+        document.getElementById("user-name").textContent = me.full_name;
+        document.getElementById("user-email").textContent = me.email;
+        document.getElementById("user-phone").textContent = me.phone ? `HP: ${me.phone}` : "HP: Belum diatur";
+      }
+
+      const farmRes = await api("/farms");
+      if (farmRes) {
+        const farms = await farmRes.json();
+        const el = document.getElementById("farm-list");
+        if (!farms.length) {
+          el.innerHTML = `<p class="muted" style="text-align: left;">Belum ada tambak yang terdaftar.</p>`;
+          return;
+        }
+        el.innerHTML = farms.map(f => `
+          <div class="list-item">
+            <div>
+              <div class="item-title"><i class="fa-solid fa-water" style="color: var(--cyan);"></i> ${f.name}</div>
+              <div class="item-sub">${f.location || "Lokasi belum diatur"}</div>
+            </div>
+            <span class="badge ok">${f.role}</span>
+          </div>
+        `).join("");
+      }
+    }
+
+    loadSettings();
+  </script>
+</body>
+</html>
