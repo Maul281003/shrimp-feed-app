@@ -20,7 +20,6 @@ document.querySelectorAll(".btn-close-modal").forEach(btn => btn.onclick = close
 function formatWIB(dateString) {
   if (!dateString) return "Belum";
   const date = new Date(dateString + "Z");
-  // Gunakan format waktu lokal agar 02:50 WIB tampil sebagai 02:50
   return date.toLocaleString('id-ID', { hour12: false }).replace(/\//g, '/');
 }
 
@@ -58,6 +57,7 @@ async function loadLogs() {
   const el = document.getElementById("logs");
   if (!data.length) { el.innerHTML = `<p class="muted">Belum ada riwayat.</p>`; return; }
   
+  // Filter agar hanya menampilkan log milik alat ini
   const deviceLogs = data.filter(l => l.device_id === deviceId);
   if (!deviceLogs.length) { el.innerHTML = `<p class="muted">Belum ada riwayat untuk alat ini.</p>`; return; }
 
@@ -93,16 +93,27 @@ async function loadSchedules() {
       </div>
     </div>`).join("");
 }
+
 const style = document.createElement('style');
 style.innerHTML = `input:checked + .slider { background: linear-gradient(135deg, var(--cyan), var(--blue)) !important; box-shadow: 0 0 10px rgba(6,182,212,0.4); } .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; } input:checked + .slider:before { transform: translateX(20px); }`;
 document.head.appendChild(style);
 
+// TOMBOL BERI PAKAN DENGAN JEDA WAKTU 4 DETIK
 document.getElementById("btn-feed").onclick = async () => {
-  msg.textContent = "Mengirim...";
+  msg.textContent = "⏳ Mengirim perintah ke alat...";
+  msg.className = "msg";
   const res = await api(`/devices/${deviceId}/feed`, { method: "POST" });
+  
   if (res && res.ok) {
-    msg.textContent = "✅ Pakan diberikan.";
-    await loadDevice(); await loadLogs();
+    msg.textContent = "⏳ Alat sedang memberi pakan, menunggu data masuk...";
+    
+    // Beri waktu 4 detik untuk ESP32 melakukan polling dan server mencatat log
+    setTimeout(async () => {
+      msg.textContent = "✅ Pakan berhasil dicatat!";
+      msg.className = "msg success";
+      await loadDevice(); 
+      await loadLogs();
+    }, 4000);
   } else {
     const err = await res.json();
     msg.textContent = err.detail || "Gagal";
