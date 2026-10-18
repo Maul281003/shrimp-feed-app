@@ -12,7 +12,7 @@ from app.models.gateway import Gateway, GatewayStatus
 from app.models.user import User
 from app.models.log import Log, LogEventType, LogSource
 from app.schemas.device import DeviceOut, DevicePairIn, GatewayCreate, GatewayOut, DeviceUpdate, DeviceRefill
-from app.models.command import DeviceCommand  # <-- Import baru untuk antrean perintah
+from app.models.command import DeviceCommand
 
 router = APIRouter()
 
@@ -70,21 +70,29 @@ async def refill_hopper(device_id: uuid.UUID, payload: DeviceRefill, user: User 
     await db.refresh(device)
     return device
 
+# --- PERBAIKAN ADA DI FUNGSI INI ---
 @router.post("/devices/pair", response_model=DeviceOut, status_code=201)
 async def pair_device(payload: DevicePairIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     gw = await db.get(Gateway, payload.gateway_id)
     if not gw: raise HTTPException(status_code=404, detail="Gateway tidak ditemukan")
     _, role = await require_farm_access(gw.farm_id, user, db, write=True)
     if role == "viewer": raise HTTPException(status_code=403, detail="Akses hanya baca")
+    
     device = (await db.execute(select(Device).where(Device.serial == payload.serial))).scalar_one_or_none()
     if not device: raise HTTPException(status_code=404, detail="Serial alat tidak dikenal")
-    if device.status != DeviceStatus.UNPAIRED: raise HTTPException(status_code=409, detail="Alat sudah terdaftar di akun lain")
+    
+    # PENGECEKAN BARU: Cek apakah device sudah punya farm_id (sudah menempati tambak lain)
+    if device.farm_id is not None: 
+        raise HTTPException(status_code=409, detail="Alat sudah terdaftar di akun lain")
     
     device.gateway_id = gw.id
     device.farm_id = gw.farm_id
     device.paired_by_id = user.id
     device.paired_at = datetime.now(timezone.utc)
-    device.status = DeviceStatus.UNKNOWN
+    
+    # Karena ESP32 kemungkinan sedang menyala dan mengirim heartbeat, kita set langsung ONLINE
+    device.status = DeviceStatus.ONLINE 
+    
     if payload.name: device.name = payload.name
     await db.commit()
     await db.refresh(device)
@@ -95,6 +103,7 @@ async def unpair_device(device_id: uuid.UUID, user: User = Depends(get_current_u
     device = await db.get(Device, device_id)
     if not device or not device.farm_id: raise HTTPException(status_code=404, detail="Alat tidak ditemukan")
     await require_farm_access(device.farm_id, user, db, write=True)
+    
     device.gateway_id = None
     device.farm_id = None
     device.paired_by_id = None
@@ -116,7 +125,6 @@ async def simulate_heartbeat(device_id: uuid.UUID, user: User = Depends(get_curr
     await db.refresh(device)
     return device
 
-# ---------- Manual Feed (IoT Version) ----------
 @router.post("/devices/{device_id}/feed", response_model=DeviceOut)
 async def manual_feed(device_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     device = await db.get(Device, device_id)
@@ -129,7 +137,6 @@ async def manual_feed(device_id: uuid.UUID, user: User = Depends(get_current_use
         
     # KITA TIDAK LANGSUNG MEMOTONG STOK DI SINI.
     # Kita hanya memasukkan perintah "feed_now" ke antrean database.
-    # Nanti ESP32 yang akan mengambil perintah ini.
     new_cmd = DeviceCommand(device_id=device.id, command_type="feed_now")
     db.add(new_cmd)
     
