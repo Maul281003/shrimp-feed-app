@@ -3,10 +3,20 @@ if (!token) window.location.href = "/login.html";
 
 const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
+// Fungsi API yang aman (tidak akan pernah mengembalikan error JSON)
 async function api(path, opts = {}) {
-  const res = await fetch(`/api/v1${path}`, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
-  if (res.status === 401) { localStorage.removeItem("token"); window.location.href = "/login.html"; return null; }
-  return res;
+  try {
+    const res = await fetch(`/api/v1${path}`, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+    if (res.status === 401) { 
+      localStorage.removeItem("token"); 
+      window.location.href = "/login.html"; 
+      return null; 
+    }
+    return res;
+  } catch (err) {
+    console.error("Koneksi API gagal:", err);
+    return null;
+  }
 }
 
 function openModal(id) { document.getElementById(id).classList.add("active"); }
@@ -22,32 +32,95 @@ let farmsCache = [];
 async function loadMe() {
   const res = await api("/auth/me");
   if (!res || !res.ok) return;
-  const me = await res.json();
-  document.getElementById("greet-name").textContent = `Hai, ${me.full_name.split(' ')[0]}!`;
+  try {
+    const me = await res.json();
+    document.getElementById("greet-name").textContent = `Hai, ${me.full_name.split(' ')[0]}!`;
+  } catch (e) { console.error("Gagal load profil:", e); }
 }
 
 async function loadFarms() {
   const res = await api("/farms");
-  if (!res || !res.ok) return; // Proteksi jika API error
-  farmsCache = await res.json();
+  if (!res || !res.ok) return;
+  try {
+    farmsCache = await res.json();
+  } catch (e) { console.error("Gagal load tambak:", e); }
 }
 
+// ==========================================
+// FUNGSI UTAMA: MEMUAT DAFTAR ALAT
+// ==========================================
+async function loadDevices() {
+  const el = document.getElementById("devices");
+  el.innerHTML = `<p class="muted">Memuat alat...</p>`; // Indikator loading
+  
+  if (!farmsCache || farmsCache.length === 0) { 
+    el.innerHTML = `<p class="muted">Belum ada tambak.</p>`; 
+    return; 
+  }
+  
+  let allDevices = [];
+  
+  // Loop melalui semua tambak untuk mengambil alat
+  for (const f of farmsCache) {
+    const res = await api(`/devices?farm_id=${f.id}`);
+    if (res && res.ok) {
+      try {
+        const devs = await res.json();
+        devs.forEach(d => allDevices.push({ ...d, farm_name: f.name }));
+      } catch (e) {
+        console.error(`Gagal parse data alat dari tambak ${f.name}`, e);
+      }
+    } else {
+      console.warn(`Gagal mengambil data alat dari tambak ${f.name}. Status: ${res ? res.status : 'Koneksi Terputus'}`);
+    }
+  }
+  
+  const onlineCount = allDevices.filter(d => d.status === 'online').length;
+  document.getElementById("val-devices").textContent = onlineCount;
+  
+  if (allDevices.length === 0) { 
+    el.innerHTML = `<p class="muted">Belum ada alat yang terpasang.</p>`; 
+    return; 
+  }
+  
+  // Tampilkan alat
+  el.innerHTML = allDevices.map(d => `
+    <div class="list-item" onclick="window.location.href='/device.html?id=${d.id}'" style="cursor: pointer;">
+      <div>
+        <div class="item-title">
+          <span class="dot ${d.status === 'online' ? 'online' : 'offline'}"></span>
+          ${d.name || d.serial}
+        </div>
+        <div class="item-sub">${d.serial} (${d.farm_name})</div>
+      </div>
+      <div style="color: var(--text-muted);"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+  `).join("");
+}
+
+// ==========================================
+// FUNGSI GRAFIK & ANALITIK (DIBUAT TERPISAH)
+// ==========================================
 async function loadAnalytics(farmId) {
   const res = await api(`/farms/${farmId}/analytics`);
-  if (!res || !res.ok) return; // Proteksi jika API error
-  const data = await res.json();
-  document.getElementById("val-fcr").textContent = data.fcr;
-  document.getElementById("val-biomass").textContent = data.current_biomass_kg;
-  document.getElementById("val-feed").textContent = data.total_feed_kg;
+  if (!res || !res.ok) return;
+  try {
+    const data = await res.json();
+    document.getElementById("val-fcr").textContent = data.fcr || "0.0";
+    document.getElementById("val-biomass").textContent = data.current_biomass_kg || "0";
+    document.getElementById("val-feed").textContent = data.total_feed_kg || "0";
+  } catch (e) { console.error("Gagal parse analytics:", e); }
 }
 
 async function loadCharts(farmId) {
   const res = await api(`/farms/${farmId}/charts`);
-  if (!res || !res.ok) return; // Proteksi jika API error
-  const data = await res.json();
-  renderFeedChart(data.trend?.labels || [], data.trend?.values || []);
-  renderHoppers(data.hoppers || []);
-  checkEmptyFeed(data.hoppers || []);
+  if (!res || !res.ok) return;
+  try {
+    const data = await res.json();
+    renderFeedChart(data.trend?.labels || [], data.trend?.values || []);
+    renderHoppers(data.hoppers || []);
+    checkEmptyFeed(data.hoppers || []);
+  } catch (e) { console.error("Gagal render chart:", e); }
 }
 
 function checkEmptyFeed(hoppers) {
@@ -65,45 +138,16 @@ function checkEmptyFeed(hoppers) {
   }
 }
 
-async function loadDevices() {
-  const el = document.getElementById("devices");
-  if (!farmsCache.length) { el.innerHTML = `<p class="muted">Tambah tambak dulu.</p>`; return; }
-  
-  const all = [];
-  for (const f of farmsCache) {
-    const res = await api(`/devices?farm_id=${f.id}`);
-    if (!res || !res.ok) continue;
-    const devs = await res.json();
-    devs.forEach(d => all.push({ ...d, farm_name: f.name }));
-  }
-  
-  const onlineCount = all.filter(d => d.status === 'online').length;
-  document.getElementById("val-devices").textContent = onlineCount;
-  
-  if (!all.length) { el.innerHTML = `<p class="muted">Belum ada alat.</p>`; return; }
-  
-  el.innerHTML = all.map(d => `
-    <div class="list-item" onclick="window.location.href='/device.html?id=${d.id}'" style="cursor: pointer;">
-      <div>
-        <div class="item-title">
-          <span class="dot ${d.status === 'online' ? 'online' : 'offline'}"></span>
-          ${d.name || d.serial}
-        </div>
-        <div class="item-sub">${d.serial}</div>
-      </div>
-      <div style="color: var(--text-muted);"><i class="fa-solid fa-chevron-right"></i></div>
-    </div>`).join("");
-}
-
 function renderFeedChart(labels, data) {
+  const ctxBar = document.getElementById('feedChart');
+  if (!ctxBar) return; // Cek jika element tidak ada
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
   const textColor = isLight ? '#0F172A' : '#94A3B8';
   const gridColor = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
 
-  const ctxBar = document.getElementById('feedChart').getContext('2d');
   if (feedChartInstance) feedChartInstance.destroy();
   
-  feedChartInstance = new Chart(ctxBar, {
+  feedChartInstance = new Chart(ctxBar.getContext('2d'), {
     type: 'bar',
     data: {
       labels: labels,
@@ -128,6 +172,7 @@ function renderFeedChart(labels, data) {
 
 function renderHoppers(hoppers) {
   const container = document.getElementById("hopper-charts-grid");
+  if (!container) return;
   hopperChartInstances.forEach(c => c.destroy());
   hopperChartInstances = [];
   container.innerHTML = "";
@@ -186,8 +231,7 @@ function renderHoppers(hoppers) {
 
     container.appendChild(div);
 
-    const ctx = canvas.getContext('2d');
-    const chart = new Chart(ctx, {
+    const chart = new Chart(canvas.getContext('2d'), {
       type: 'doughnut',
       data: {
         labels: ['Terisi', 'Kosong'],
@@ -208,7 +252,9 @@ function renderHoppers(hoppers) {
   });
 }
 
-// ACTIONS
+// ==========================================
+// AKSI BUTTONS (MODALS)
+// ==========================================
 document.getElementById("btn-save-farm").onclick = async () => {
   const name = document.getElementById("inp-farm-name").value;
   if (!name) return;
@@ -253,7 +299,8 @@ document.getElementById("btn-save-pair").onclick = async () => {
   if (!serial) return;
   
   const gwRes = await api(`/gateways?farm_id=${farmsCache[0].id}`);
-  let gws = gwRes ? await gwRes.json() : [];
+  let gws = [];
+  if (gwRes && gwRes.ok) gws = await gwRes.json();
   
   if (gws.length === 0) {
     const newGwRes = await api("/gateways", {
@@ -278,21 +325,26 @@ document.getElementById("btn-save-pair").onclick = async () => {
     await loadDevices(); 
     document.getElementById("inp-pair-serial").value = "";
   }
-  else { const err = await res.json(); alert(err.detail || "Gagal pairing"); }
+  else { 
+    let errMsg = "Gagal pairing";
+    if (res) { try { const err = await res.json(); errMsg = err.detail || errMsg; } catch(e){} }
+    alert(errMsg); 
+  }
 };
 
-// INIT (Proteksi penuh)
+// ==========================================
+// URUTAN PEMUATAN (INIT)
+// ==========================================
 (async () => {
-  try {
-    await loadMe();
-    await loadFarms(); 
-    await loadDevices(); 
-    
-    if (farmsCache.length > 0) {
-      await loadAnalytics(farmsCache[0].id);
-      await loadCharts(farmsCache[0].id);
-    }
-  } catch (err) {
-    console.error("Terjadi kesalahan saat memuat dashboard:", err);
+  await loadMe();
+  await loadFarms(); 
+  
+  // 1. Tampilkan alat terlebih dahulu (agar tidak terpengaruh error grafik)
+  await loadDevices(); 
+  
+  // 2. Muat grafik secara terpisah
+  if (farmsCache && farmsCache.length > 0) {
+    await loadAnalytics(farmsCache[0].id);
+    await loadCharts(farmsCache[0].id);
   }
 })();
