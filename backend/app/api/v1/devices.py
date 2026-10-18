@@ -70,7 +70,6 @@ async def refill_hopper(device_id: uuid.UUID, payload: DeviceRefill, user: User 
     await db.refresh(device)
     return device
 
-# --- PERBAIKAN ADA DI FUNGSI INI ---
 @router.post("/devices/pair", response_model=DeviceOut, status_code=201)
 async def pair_device(payload: DevicePairIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     gw = await db.get(Gateway, payload.gateway_id)
@@ -81,7 +80,7 @@ async def pair_device(payload: DevicePairIn, user: User = Depends(get_current_us
     device = (await db.execute(select(Device).where(Device.serial == payload.serial))).scalar_one_or_none()
     if not device: raise HTTPException(status_code=404, detail="Serial alat tidak dikenal")
     
-    # PENGECEKAN BARU: Cek apakah device sudah punya farm_id (sudah menempati tambak lain)
+    # Cek apakah sudah punya farm_id (sudah menempati tambak lain)
     if device.farm_id is not None: 
         raise HTTPException(status_code=409, detail="Alat sudah terdaftar di akun lain")
     
@@ -89,8 +88,6 @@ async def pair_device(payload: DevicePairIn, user: User = Depends(get_current_us
     device.farm_id = gw.farm_id
     device.paired_by_id = user.id
     device.paired_at = datetime.now(timezone.utc)
-    
-    # Karena ESP32 kemungkinan sedang menyala dan mengirim heartbeat, kita set langsung ONLINE
     device.status = DeviceStatus.ONLINE 
     
     if payload.name: device.name = payload.name
@@ -125,19 +122,24 @@ async def simulate_heartbeat(device_id: uuid.UUID, user: User = Depends(get_curr
     await db.refresh(device)
     return device
 
+# ---------- Manual Feed (Diperbarui dengan Durasi) ----------
 @router.post("/devices/{device_id}/feed", response_model=DeviceOut)
 async def manual_feed(device_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     device = await db.get(Device, device_id)
     if not device or not device.farm_id: raise HTTPException(status_code=404, detail="Alat tidak ditemukan")
     await require_farm_access(device.farm_id, user, db, write=True)
     
-    amount = 2.5 
-    if device.hopper_stock_kg < amount:
-        raise HTTPException(400, f"Stok di bak alat ini tidak cukup (Sisa: {device.hopper_stock_kg} kg). Isi ulang dulu!")
+    # Cek stok minimal
+    if device.hopper_stock_kg <= 0:
+        raise HTTPException(400, "Stok di bak alat ini habis. Isi ulang dulu!")
         
-    # KITA TIDAK LANGSUNG MEMOTONG STOK DI SINI.
-    # Kita hanya memasukkan perintah "feed_now" ke antrean database.
-    new_cmd = DeviceCommand(device_id=device.id, command_type="feed_now")
+    # Masukkan perintah ke antrean dengan durasi default
+    new_cmd = DeviceCommand(
+        device_id=device.id, 
+        command_type="feed_now",
+        duration_motor=4,   # Default 4 detik
+        duration_blower=2   # Default 2 detik
+    )
     db.add(new_cmd)
     
     await db.commit()

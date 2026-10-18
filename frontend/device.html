@@ -8,8 +8,6 @@
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <title>Detail Alat — Pakani</title>
-  
-  <!-- Script Cek Tema Awal -->
   <script>
     if (localStorage.getItem('theme') === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
@@ -29,7 +27,6 @@
   
   <main style="padding: 0 1.5rem;">
     
-    <!-- Status Card -->
     <div class="stat-card" style="text-align: center; padding: 2rem 1rem;">
       <div class="stat-icon cyan" style="margin: 0 auto 1rem; width: 70px; height: 70px; font-size: 2rem;">
         <i class="fa-solid fa-microchip"></i>
@@ -53,7 +50,6 @@
       <p id="msg" class="msg" style="color: var(--cyan); margin-top: 1rem; font-weight: 600;"></p>
     </div>
 
-    <!-- Jadwal -->
     <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
       <span>Jadwal Pakan</span>
       <i class="fa-solid fa-clock" style="color: var(--cyan);"></i>
@@ -62,17 +58,17 @@
     
     <form id="form-schedule" class="stat-card" style="margin-bottom: 1.5rem;">
       <div style="display: flex; gap: 10px;">
-        <label class="field" style="flex: 1;"><span>Jam</span><input type="number" id="sch-hour" min="0" max="23" required value="8"></label>
-        <label class="field" style="flex: 1;"><span>Menit</span><input type="number" id="sch-minute" min="0" max="59" required value="0"></label>
+        <label class="field" style="flex: 1;"><span>Jam</span><input type="number" id="sch-hour" min="0" required value="8"></label>
+        <label class="field" style="flex: 1;"><span>Menit</span><input type="number" id="sch-minute" min="0" required value="0"></label>
       </div>
       <div style="display: flex; gap: 10px;">
-        <label class="field" style="flex: 1;"><span>Motor (s)</span><input type="number" id="sch-motor" min="1" max="30" required value="4"></label>
-        <label class="field" style="flex: 1;"><span>Blower (s)</span><input type="number" id="sch-blower" min="0" max="10" required value="2"></label>
+        <!-- MAX DIHAPUS AGAR BEBAS -->
+        <label class="field" style="flex: 1;"><span>Motor (detik)</span><input type="number" id="sch-motor" min="1" required value="4"></label>
+        <label class="field" style="flex: 1;"><span>Blower (detik)</span><input type="number" id="sch-blower" min="0" required value="2"></label>
       </div>
       <button type="submit" class="btn-secondary" style="width: 100%;"><i class="fa-solid fa-plus"></i> Tambah</button>
     </form>
 
-    <!-- Riwayat -->
     <div class="section-title" style="padding: 0;">
       <span>Riwayat Pakan</span>
       <i class="fa-solid fa-list-check" style="color: var(--cyan);"></i>
@@ -81,7 +77,6 @@
 
   </main>
 
-  <!-- MODAL EDIT NAMA -->
   <div id="modal-name" class="modal-overlay">
     <div class="modal-content">
       <h3>Edit Nama Alat</h3>

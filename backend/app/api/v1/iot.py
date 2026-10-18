@@ -13,25 +13,19 @@ router = APIRouter()
 @router.post("/heartbeat")
 async def device_heartbeat(serial: str, db: AsyncSession = Depends(get_db)):
     device = (await db.execute(select(Device).where(Device.serial == serial))).scalar_one_or_none()
-    if not device:
-        raise HTTPException(404, "Device tidak terdaftar di sistem")
-    
-    # Jika alat belum di-pair ke tambak, tolak heartbeat
-    if device.farm_id is None:
-        return {"status": "error", "message": "Device belum di-pair ke tambak manapun"}
+    if not device: raise HTTPException(404, "Device tidak terdaftar")
+    if device.farm_id is None: return {"status": "error", "message": "Belum di-pair"}
     
     device.status = DeviceStatus.ONLINE
     device.last_seen_at = datetime.now(timezone.utc)
     await db.commit()
-    return {"status": "ok", "message": "Heartbeat received"}
+    return {"status": "ok"}
 
 @router.get("/command")
 async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
     device = (await db.execute(select(Device).where(Device.serial == serial))).scalar_one_or_none()
-    if not device:
-        raise HTTPException(404, "Device tidak dikenal")
+    if not device: raise HTTPException(404, "Device tidak dikenal")
         
-    # Cari perintah yang belum dieksekusi
     cmd = (await db.execute(
         select(DeviceCommand)
         .where(DeviceCommand.device_id == device.id, DeviceCommand.is_executed == False)
@@ -39,28 +33,32 @@ async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
     )).scalars().first()
 
     if cmd:
-        # 1. Tandai perintah sudah diambil
         cmd.is_executed = True
         
-        # 2. Potong stok di bak alat (Hopper) sebesar 2.5 kg
-        amount = 2.5
+        # Hitung pakan yang keluar: Misal 1 detik motor = 0.5 kg. (Bisa disesuaikan)
+        amount = cmd.duration_motor * 0.5
         if device.hopper_stock_kg >= amount:
             device.hopper_stock_kg -= amount
         else:
-            device.hopper_stock_kg = 0 # Jaga-jaga agar tidak minus
+            device.hopper_stock_kg = 0
             
-        # 3. Catat ke Riwayat Pakan (Log)
         new_log = Log(
             device_id=device.id, 
             event_type=LogEventType.MANUAL_FEED, 
             event_at=datetime.now(timezone.utc), 
-            duration_sec=3, 
+            duration_sec=cmd.duration_motor, 
             amount_kg=amount, 
-            source=LogSource.DEVICE # Berasal dari eksekusi alat
+            source=LogSource.DEVICE
         )
         db.add(new_log)
-        
         await db.commit()
-        return {"command": cmd.command_type, "id": cmd.id}
+        
+        # Kirim durasi ke ESP32
+        return {
+            "command": cmd.command_type, 
+            "id": cmd.id,
+            "duration_motor": cmd.duration_motor,
+            "duration_blower": cmd.duration_blower
+        }
         
     return {"command": None}
