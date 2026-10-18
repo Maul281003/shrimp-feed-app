@@ -54,28 +54,19 @@ async function loadCharts(farmId) {
   const data = await res.json();
   renderFeedChart(data.trend.labels, data.trend.values);
   renderHoppers(data.hoppers);
-  
-  // PANGGIL FUNGSI PENGECEKAN STOK HABIS DI SINI
   checkEmptyFeed(data.hoppers);
 }
 
-// FUNGSI BARU: Deteksi Alat yang Habis
 function checkEmptyFeed(hoppers) {
-  // Filter alat yang stoknya <= 0 (atau sangat kecil seperti 0.1)
   const emptyDevices = hoppers.filter(h => h.current <= 0.1);
-  
   if (emptyDevices.length > 0) {
     const listEl = document.getElementById("empty-device-list");
-    
-    // Buat daftar nama alat yang habis
     listEl.innerHTML = emptyDevices.map(d => `
       <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
         <i class="fa-solid fa-circle-xmark" style="color: var(--red);"></i>
         <span style="font-weight: 700; color: var(--text-main);">${d.name}</span>
       </div>
     `).join("");
-    
-    // Tampilkan Pop Up
     openModal("modal-empty-alert");
   }
 }
@@ -110,7 +101,6 @@ async function loadDevices() {
     </div>`).join("");
 }
 
-// --- FUNGSI RENDER CHART.JS ---
 function renderFeedChart(labels, data) {
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
   const textColor = isLight ? '#0F172A' : '#94A3B8';
@@ -161,9 +151,9 @@ function renderHoppers(hoppers) {
     if (percent > 100) percent = 100;
     if (percent < 0) percent = 0;
     
-    let color = '#10B981'; // Green
-    if (percent <= 20) color = '#EF4444'; // Red
-    else if (percent <= 50) color = '#F59E0B'; // Orange
+    let color = '#10B981';
+    if (percent <= 20) color = '#EF4444';
+    else if (percent <= 50) color = '#F59E0B';
 
     const div = document.createElement("div");
     div.style.textAlign = "center";
@@ -224,15 +214,18 @@ function renderHoppers(hoppers) {
   });
 }
 
-// ACTIONS
+// ==========================================
+// BAGIAN YANG DIPERBAIKI (SINKRONISASI DATA)
+// ==========================================
+
 document.getElementById("btn-save-farm").onclick = async () => {
   const name = document.getElementById("inp-farm-name").value;
   if (!name) return;
   const res = await api("/farms", { method: "POST", body: JSON.stringify({ name }) });
   if (res && res.ok) { 
     closeModals(); 
-    await loadFarms(); 
-    await loadDevices(); 
+    await loadFarms(); // Muat ulang data tambak
+    await loadDevices(); // Muat ulang data alat
     document.getElementById("inp-farm-name").value = ""; 
   }
 };
@@ -290,14 +283,14 @@ document.getElementById("btn-save-pair").onclick = async () => {
   const res = await api("/devices/pair", { method: "POST", body: JSON.stringify({ serial: serial.trim(), gateway_id: gws[0].id }) });
   if (res && res.ok) { 
     closeModals(); 
+    // PERBAIKAN: Muat ulang data Tambak (agar cache sinkron) lalu muat data Alat
+    await loadFarms(); 
     await loadDevices(); 
-    await loadCharts(farmsCache[0].id); 
     document.getElementById("inp-pair-serial").value = "";
   }
   else { const err = await res.json(); alert(err.detail || "Gagal pairing"); }
 };
 
-// INIT
 (async () => {
   await loadMe();
   await loadFarms();
