@@ -12,9 +12,17 @@ router = APIRouter()
 @router.post("/heartbeat")
 async def device_heartbeat(serial: str, db: AsyncSession = Depends(get_db)):
     device = (await db.execute(select(Device).where(Device.serial == serial))).scalar_one_or_none()
+    
     if not device:
         raise HTTPException(404, "Device tidak terdaftar di sistem")
     
+    # --- PERBAIKAN PENTING ---
+    # Jika alat belum di-pair ke tambak (farm_id masih kosong), 
+    # jangan ubah statusnya menjadi ONLINE agar tidak mengunci proses pairing.
+    if device.farm_id is None:
+        return {"status": "error", "message": "Device belum di-pair ke tambak manapun"}
+    
+    # Jika sudah di-pair, perbarui status menjadi ONLINE
     device.status = DeviceStatus.ONLINE
     device.last_seen_at = datetime.now(timezone.utc)
     await db.commit()
@@ -23,6 +31,7 @@ async def device_heartbeat(serial: str, db: AsyncSession = Depends(get_db)):
 @router.get("/command")
 async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
     device = (await db.execute(select(Device).where(Device.serial == serial))).scalar_one_or_none()
+    
     if not device:
         raise HTTPException(404, "Device tidak dikenal")
         
