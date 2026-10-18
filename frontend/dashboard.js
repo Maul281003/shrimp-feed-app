@@ -52,12 +52,15 @@ async function loadCharts(farmId) {
   const res = await api(`/farms/${farmId}/charts`);
   if (!res) return;
   const data = await res.json();
-  renderFeedChart(data.trend.labels, data.trend.values);
-  renderHoppers(data.hoppers);
-  checkEmptyFeed(data.hoppers);
+  
+  // Pastikan data tidak undefined sebelum dirender
+  renderFeedChart(data.trend?.labels || [], data.trend?.values || []);
+  renderHoppers(data.hoppers || []);
+  checkEmptyFeed(data.hoppers || []);
 }
 
 function checkEmptyFeed(hoppers) {
+  if (!Array.isArray(hoppers)) return;
   const emptyDevices = hoppers.filter(h => h.current <= 0.1);
   if (emptyDevices.length > 0) {
     const listEl = document.getElementById("empty-device-list");
@@ -138,7 +141,7 @@ function renderHoppers(hoppers) {
   hopperChartInstances = [];
   container.innerHTML = "";
 
-  if (!hoppers.length) {
+  if (!Array.isArray(hoppers) || !hoppers.length) {
     container.innerHTML = `<p class="muted" style="grid-column: 1 / -1; text-align: center;">Belum ada alat terpasang.</p>`;
     return;
   }
@@ -214,18 +217,15 @@ function renderHoppers(hoppers) {
   });
 }
 
-// ==========================================
-// BAGIAN YANG DIPERBAIKI (SINKRONISASI DATA)
-// ==========================================
-
+// ACTIONS
 document.getElementById("btn-save-farm").onclick = async () => {
   const name = document.getElementById("inp-farm-name").value;
   if (!name) return;
   const res = await api("/farms", { method: "POST", body: JSON.stringify({ name }) });
   if (res && res.ok) { 
     closeModals(); 
-    await loadFarms(); // Muat ulang data tambak
-    await loadDevices(); // Muat ulang data alat
+    await loadFarms(); 
+    await loadDevices(); 
     document.getElementById("inp-farm-name").value = ""; 
   }
 };
@@ -283,7 +283,6 @@ document.getElementById("btn-save-pair").onclick = async () => {
   const res = await api("/devices/pair", { method: "POST", body: JSON.stringify({ serial: serial.trim(), gateway_id: gws[0].id }) });
   if (res && res.ok) { 
     closeModals(); 
-    // PERBAIKAN: Muat ulang data Tambak (agar cache sinkron) lalu muat data Alat
     await loadFarms(); 
     await loadDevices(); 
     document.getElementById("inp-pair-serial").value = "";

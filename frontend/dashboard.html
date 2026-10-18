@@ -74,6 +74,14 @@
     </div>
   </div>
 
+  <!-- LIST ALAT DIPINDAHKAN KE ATAS GRAFIK -->
+  <div class="section-title">
+    <span>Alat Terpasang</span>
+    <i class="fa-solid fa-microchip" style="color: var(--cyan);"></i>
+  </div>
+  <div id="devices" class="list"></div>
+
+  <!-- GRAFIK -->
   <div class="charts-section">
     <div class="chart-card">
       <h3>Konsumsi Pakan 7 Hari <i class="fa-solid fa-ellipsis" style="color: var(--text-muted);"></i></h3>
@@ -82,7 +90,6 @@
       </div>
     </div>
 
-    <!-- Grafik Distribusi Bak (Hopper) Per Alat -->
     <div class="chart-card">
       <h3>Stok di Bak Penampungan <i class="fa-solid fa-box" style="color: var(--text-muted);"></i></h3>
       <div id="hopper-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px;">
@@ -90,12 +97,6 @@
       </div>
     </div>
   </div>
-
-  <div class="section-title">
-    <span>Alat Terpasang</span>
-    <i class="fa-solid fa-microchip" style="color: var(--cyan);"></i>
-  </div>
-  <div id="devices" class="list"></div>
 
   <nav class="bottom-nav">
     <div class="nav-icon active"><i class="fa-solid fa-house"></i></div>
@@ -143,7 +144,6 @@
     </div>
   </div>
 
-  <!-- MODAL PERINGATAN PAKAN HABIS -->
   <div id="modal-empty-alert" class="modal-overlay">
     <div class="modal-content" style="border: 2px solid var(--red);">
       <div style="text-align: center; margin-bottom: 1rem;">
@@ -151,11 +151,9 @@
       </div>
       <h3 style="color: var(--red); margin-bottom: 0.5rem;">Peringatan Dini!</h3>
       <p style="text-align: center; color: var(--text-main); margin-bottom: 1rem; font-weight: 500;">
-        Stok pakan di bak penampungan berikut telah <strong style="color: var(--red);">HABIS</strong>. Segera isi ulang agar udang tidak kelaparan:
+        Stok pakan di bak penampungan berikut telah <strong style="color: var(--red);">HABIS</strong>. Segera isi ulang:
       </p>
-      <div id="empty-device-list" style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; max-height: 150px; overflow-y: auto;">
-        <!-- Diisi oleh JS -->
-      </div>
+      <div id="empty-device-list" style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; max-height: 150px; overflow-y: auto;"></div>
       <button onclick="closeModals()" class="btn-primary" style="background: var(--red); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">Mengerti</button>
     </div>
   </div>
