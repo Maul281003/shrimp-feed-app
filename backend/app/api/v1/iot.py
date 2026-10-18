@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from app.core.database import get_db
 from app.models.device import Device, DeviceStatus
@@ -9,6 +9,17 @@ from app.models.command import DeviceCommand
 from app.models.log import Log, LogEventType, LogSource
 
 router = APIRouter()
+
+# --- RUTE BARU UNTUK CEK JAM SERVER ---
+@router.get("/time")
+async def get_server_time():
+    wib = timezone(timedelta(hours=7))
+    now = datetime.now(wib)
+    return {
+        "server_time_wib": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "jam": now.hour,
+        "menit": now.minute
+    }
 
 @router.post("/heartbeat")
 async def device_heartbeat(serial: str, db: AsyncSession = Depends(get_db)):
@@ -35,7 +46,6 @@ async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
     if cmd:
         cmd.is_executed = True
         
-        # Hitung pakan yang keluar: Misal 1 detik motor = 0.5 kg. (Bisa disesuaikan)
         amount = cmd.duration_motor * 0.5
         if device.hopper_stock_kg >= amount:
             device.hopper_stock_kg -= amount
@@ -53,7 +63,6 @@ async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
         db.add(new_log)
         await db.commit()
         
-        # Kirim durasi ke ESP32
         return {
             "command": cmd.command_type, 
             "id": cmd.id,

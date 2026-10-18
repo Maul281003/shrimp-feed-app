@@ -1,6 +1,6 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
-import asyncio
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI
@@ -13,47 +13,54 @@ from app.core.config import settings
 from app.core.database import engine, AsyncSessionLocal
 from app.models import Base, Schedule, DeviceCommand
 
-# FUNGSI SCHEDULER: Cek jadwal setiap 1 menit
+# FUNGSI SCHEDULER YANG SUDAH DIPERBAIKI
 async def schedule_checker():
+    print("⏰ Scheduler is running...")
     while True:
-        now = datetime.now(timezone(timedelta(hours=7))) # WIB
-        async with AsyncSessionLocal() as db:
-            # Cari jadwal yang aktif dan waktunya cocok dengan sekarang
-            res = await db.execute(
-                select(Schedule).where(
-                    Schedule.is_enabled == True,
-                    Schedule.hour == now.hour,
-                    Schedule.minute == now.minute
-                )
-            )
-            schedules = res.scalars().all()
+        try:
+            # Gunakan Waktu Indonesia Barat
+            now = datetime.now(timezone(timedelta(hours=7)))
             
-            for s in schedules:
-                # Buat perintah ke alat
-                cmd = DeviceCommand(
-                    device_id=s.device_id, 
-                    command_type="feed_now",
-                    duration_motor=s.motor_duration_sec,
-                    duration_blower=s.blower_duration_sec
+            async with AsyncSessionLocal() as db:
+                res = await db.execute(
+                    select(Schedule).where(
+                        Schedule.is_enabled == True,
+                        Schedule.hour == now.hour,
+                        Schedule.minute == now.minute
+                    )
                 )
-                db.add(cmd)
-            if schedules:
-                await db.commit()
+                schedules = res.scalars().all()
                 
-        # Tidur 60 detik sebelum mengecek lagi
-        await asyncio.sleep(60)
+                if schedules:
+                    print(f"🔔 [SCHEDULER] Menemukan {len(schedules)} jadwal untuk jam {now.strftime('%H:%M')}")
+                    for s in schedules:
+                        cmd = DeviceCommand(
+                            device_id=s.device_id, 
+                            command_type="feed_now",
+                            duration_motor=s.motor_duration_sec,
+                            duration_blower=s.blower_duration_sec
+                        )
+                        db.add(cmd)
+                    await db.commit()
+                    
+        except Exception as e:
+            print(f"❌ Error di Scheduler: {e}")
+            
+        # Hitung sisa detik menuju menit berikutnya agar tidak "drift"
+        now_after = datetime.now(timezone(timedelta(hours=7)))
+        sleep_time = 60 - now_after.second + 0.5
+        await asyncio.sleep(sleep_time)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+    
     # Jalankan scheduler di background
     task = asyncio.create_task(schedule_checker())
     
     yield
     
-    # Matikan scheduler saat server mati
     task.cancel()
     await engine.dispose()
 
