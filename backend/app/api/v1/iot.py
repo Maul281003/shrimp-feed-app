@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
@@ -9,7 +9,6 @@ from app.models.command import DeviceCommand
 
 router = APIRouter()
 
-# 1. ESP32 kirim sinyal "Saya Online" setiap 5 detik
 @router.post("/heartbeat")
 async def device_heartbeat(serial: str, db: AsyncSession = Depends(get_db)):
     device = (await db.execute(select(Device).where(Device.serial == serial))).scalar_one_or_none()
@@ -21,7 +20,6 @@ async def device_heartbeat(serial: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"status": "ok", "message": "Heartbeat received"}
 
-# 2. ESP32 tanya "Ada perintah untuk saya?"
 @router.get("/command")
 async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
     device = (await db.execute(select(Device).where(Device.serial == serial))).scalar_one_or_none()
@@ -36,5 +34,9 @@ async def get_command(serial: str, db: AsyncSession = Depends(get_db)):
     )).scalars().first()
 
     if cmd:
+        # KUNCI PERBAIKAN: Tandai perintah sudah diambil agar tidak diulang terus
+        cmd.is_executed = True
+        await db.commit()
         return {"command": cmd.command_type, "id": cmd.id}
+        
     return {"command": None}
