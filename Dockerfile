@@ -1,13 +1,13 @@
 FROM python:3.13-slim
+
 WORKDIR /app
 
 # Install dependencies
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-COPY backend/app ./app
-COPY backend/seed.py .
+# Ambil SEMUA file dari folder backend (termasuk reset_db.py)
+COPY backend/ .
 
 # Copy frontend
 COPY frontend /frontend
