@@ -7,9 +7,10 @@ from app.models.schedule import Schedule
 from app.models.log import Log, LogEventType, LogSource
 from app.models.stock import FeedStock
 from app.models.sampling import Sampling
+from app.models.command import DeviceCommand # <-- TAMBAHKAN INI
 
 __all__ = [
     "Base", "User", "UserRole", "Farm", "FarmMember", "Gateway", "GatewayStatus",
     "Device", "DeviceStatus", "StockStatus", "Schedule", "Log", "LogEventType",
-    "LogSource", "FeedStock", "Sampling",
+    "LogSource", "FeedStock", "Sampling", "DeviceCommand", # <-- DAN INI
 ]

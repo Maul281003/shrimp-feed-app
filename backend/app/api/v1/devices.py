@@ -12,6 +12,7 @@ from app.models.gateway import Gateway, GatewayStatus
 from app.models.user import User
 from app.models.log import Log, LogEventType, LogSource
 from app.schemas.device import DeviceOut, DevicePairIn, GatewayCreate, GatewayOut, DeviceUpdate, DeviceRefill
+from app.models.command import DeviceCommand  # <-- Import baru untuk antrean perintah
 
 router = APIRouter()
 
@@ -115,6 +116,7 @@ async def simulate_heartbeat(device_id: uuid.UUID, user: User = Depends(get_curr
     await db.refresh(device)
     return device
 
+# ---------- Manual Feed (IoT Version) ----------
 @router.post("/devices/{device_id}/feed", response_model=DeviceOut)
 async def manual_feed(device_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     device = await db.get(Device, device_id)
@@ -125,19 +127,12 @@ async def manual_feed(device_id: uuid.UUID, user: User = Depends(get_current_use
     if device.hopper_stock_kg < amount:
         raise HTTPException(400, f"Stok di bak alat ini tidak cukup (Sisa: {device.hopper_stock_kg} kg). Isi ulang dulu!")
         
-    device.hopper_stock_kg -= amount
-    device.last_seen_at = datetime.now(timezone.utc)
-    device.status = DeviceStatus.ONLINE
+    # KITA TIDAK LANGSUNG MEMOTONG STOK DI SINI.
+    # Kita hanya memasukkan perintah "feed_now" ke antrean database.
+    # Nanti ESP32 yang akan mengambil perintah ini.
+    new_cmd = DeviceCommand(device_id=device.id, command_type="feed_now")
+    db.add(new_cmd)
     
-    new_log = Log(
-        device_id=device.id, 
-        event_type=LogEventType.MANUAL_FEED, 
-        event_at=datetime.now(timezone.utc), 
-        duration_sec=4, 
-        amount_kg=amount, 
-        source=LogSource.APP
-    )
-    db.add(new_log)
     await db.commit()
     await db.refresh(device)
     return device
