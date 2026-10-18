@@ -21,27 +21,20 @@ let farmsCache = [];
 
 async function loadMe() {
   const res = await api("/auth/me");
-  if (!res) return;
+  if (!res || !res.ok) return;
   const me = await res.json();
   document.getElementById("greet-name").textContent = `Hai, ${me.full_name.split(' ')[0]}!`;
 }
 
 async function loadFarms() {
   const res = await api("/farms");
-  if (!res) return;
+  if (!res || !res.ok) return; // Proteksi jika API error
   farmsCache = await res.json();
-  if (farmsCache.length > 0) {
-    await loadAnalytics(farmsCache[0].id);
-    await loadCharts(farmsCache[0].id);
-  } else {
-    renderFeedChart(["-"], [0]);
-    renderHoppers([]);
-  }
 }
 
 async function loadAnalytics(farmId) {
   const res = await api(`/farms/${farmId}/analytics`);
-  if (!res) return;
+  if (!res || !res.ok) return; // Proteksi jika API error
   const data = await res.json();
   document.getElementById("val-fcr").textContent = data.fcr;
   document.getElementById("val-biomass").textContent = data.current_biomass_kg;
@@ -50,10 +43,8 @@ async function loadAnalytics(farmId) {
 
 async function loadCharts(farmId) {
   const res = await api(`/farms/${farmId}/charts`);
-  if (!res) return;
+  if (!res || !res.ok) return; // Proteksi jika API error
   const data = await res.json();
-  
-  // Pastikan data tidak undefined sebelum dirender
   renderFeedChart(data.trend?.labels || [], data.trend?.values || []);
   renderHoppers(data.hoppers || []);
   checkEmptyFeed(data.hoppers || []);
@@ -81,7 +72,7 @@ async function loadDevices() {
   const all = [];
   for (const f of farmsCache) {
     const res = await api(`/devices?farm_id=${f.id}`);
-    if (!res) continue;
+    if (!res || !res.ok) continue;
     const devs = await res.json();
     devs.forEach(d => all.push({ ...d, farm_name: f.name }));
   }
@@ -290,8 +281,18 @@ document.getElementById("btn-save-pair").onclick = async () => {
   else { const err = await res.json(); alert(err.detail || "Gagal pairing"); }
 };
 
+// INIT (Proteksi penuh)
 (async () => {
-  await loadMe();
-  await loadFarms();
-  await loadDevices();
+  try {
+    await loadMe();
+    await loadFarms(); 
+    await loadDevices(); 
+    
+    if (farmsCache.length > 0) {
+      await loadAnalytics(farmsCache[0].id);
+      await loadCharts(farmsCache[0].id);
+    }
+  } catch (err) {
+    console.error("Terjadi kesalahan saat memuat dashboard:", err);
+  }
 })();
