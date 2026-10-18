@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <title>Setelan — Pakani</title>
-  <!-- Script Cek Tema Awal -->
+  
   <script>
     if (localStorage.getItem('theme') === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
@@ -48,6 +48,19 @@
       </label>
     </div>
 
+    <!-- DOWNLOAD APLIKASI -->
+    <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
+      <span>Install Aplikasi</span>
+      <i class="fa-solid fa-mobile-screen" style="color: var(--cyan);"></i>
+    </div>
+    <div class="stat-card" style="margin-bottom: 1.5rem;">
+      <div class="item-title" style="font-size: 1rem; margin-bottom: 0.5rem;">Pasang di HP Anda</div>
+      <div class="item-sub" style="margin-bottom: 1rem;">Akses Pakani lebih cepat langsung dari layar utama HP tanpa perlu buka browser.</div>
+      <button id="btn-install-app" class="btn-primary" style="width: 100%;">
+        <i class="fa-solid fa-download"></i> Install Sekarang
+      </button>
+    </div>
+
     <!-- Kartu Profil -->
     <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
       <span>Profil Anda</span>
@@ -76,7 +89,7 @@
       <i class="fa-solid fa-right-from-bracket"></i> Keluar dari Akun
     </button>
 
-    <p class="muted" style="margin-top: 2rem;">Pakani App v0.3.0<br>Dibuat untuk Petambak Indonesia 🦐</p>
+    <p class="muted" style="margin-top: 2rem;">Pakani App v0.4.0<br>Dibuat untuk Petambak Indonesia 🦐</p>
 
   </main>
 
@@ -86,11 +99,9 @@
     
     const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
-    // -- Logika Toggle Theme --
+    // --- 1. Logika Theme ---
     const themeToggle = document.getElementById("theme-toggle");
-    if (localStorage.getItem('theme') === 'light') {
-      themeToggle.checked = true;
-    }
+    if (localStorage.getItem('theme') === 'light') themeToggle.checked = true;
 
     function toggleTheme(isLight) {
       if (isLight) {
@@ -102,6 +113,48 @@
       }
     }
 
+    // --- 2. Logika Install PWA ---
+    let deferredPrompt;
+    const installBtn = document.getElementById("btn-install-app");
+
+    // Deteksi jika berjalan di iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    // Cek apakah aplikasi sudah terinstall (mode standalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    if (isStandalone) {
+      installBtn.innerHTML = '<i class="fa-solid fa-check"></i> Aplikasi Sudah Terinstall';
+      installBtn.style.background = 'var(--success)';
+      installBtn.disabled = true;
+    } else {
+      // Event listener untuk Android/Desktop Chrome
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+      });
+
+      installBtn.onclick = async () => {
+        if (isIOS) {
+          // Panduan khusus iOS
+          alert("Untuk memasang di iPhone:\n\n1. Ketuk ikon 'Share' (Bagikan) di bagian bawah Safari.\n2. Gulir ke bawah dan pilih 'Add to Home Screen' (Tambahkan ke Layar Utama).\n3. Ketuk 'Add' (Tambah).");
+        } else if (deferredPrompt) {
+          // Tampilkan prompt install otomatis (Android/Desktop)
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            installBtn.innerHTML = '<i class="fa-solid fa-check"></i> Berhasil Dipasang';
+            installBtn.style.background = 'var(--success)';
+          }
+          deferredPrompt = null;
+        } else {
+          // Fallback jika browser tidak mendukung (misal Firefox di Android)
+          alert("Browser Anda tidak mendukung instalasi otomatis. Silakan gunakan menu browser dan pilih 'Tambahkan ke Layar Utama'.");
+        }
+      };
+    }
+
+    // --- 3. Logika Ambil Data API ---
     async function api(path) {
       const res = await fetch(`/api/v1${path}`, { headers });
       if (res.status === 401) { localStorage.removeItem("token"); window.location.href = "/login.html"; return null; }
