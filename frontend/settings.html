@@ -84,12 +84,19 @@
     </div>
     <div id="farm-list" class="list" style="padding: 0; margin-bottom: 1.5rem;"></div>
 
+    <!-- Daftar Alat (TAMBAHAN BARU) -->
+    <div class="section-title" style="padding: 0; margin-top: 1.5rem;">
+      <span>Daftar Alat Terpasang</span>
+      <i class="fa-solid fa-microchip" style="color: var(--cyan);"></i>
+    </div>
+    <div id="device-list" class="list" style="padding: 0; margin-bottom: 1.5rem;"></div>
+
     <!-- Tombol Logout -->
     <button id="btn-logout" class="btn-danger" style="margin-top: 1rem; padding: 1.2rem;">
       <i class="fa-solid fa-right-from-bracket"></i> Keluar dari Akun
     </button>
 
-    <p class="muted" style="margin-top: 2rem;">Pakani App v0.4.0<br>Dibuat untuk Petambak Indonesia 🦐</p>
+    <p class="muted" style="margin-top: 2rem;">Pakani App v0.4.5<br>Dibuat untuk Petambak Indonesia 🦐</p>
 
   </main>
 
@@ -116,11 +123,7 @@
     // --- 2. Logika Install PWA ---
     let deferredPrompt;
     const installBtn = document.getElementById("btn-install-app");
-
-    // Deteksi jika berjalan di iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    
-    // Cek apakah aplikasi sudah terinstall (mode standalone)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
     if (isStandalone) {
@@ -128,7 +131,6 @@
       installBtn.style.background = 'var(--success)';
       installBtn.disabled = true;
     } else {
-      // Event listener untuk Android/Desktop Chrome
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
@@ -136,10 +138,8 @@
 
       installBtn.onclick = async () => {
         if (isIOS) {
-          // Panduan khusus iOS
           alert("Untuk memasang di iPhone:\n\n1. Ketuk ikon 'Share' (Bagikan) di bagian bawah Safari.\n2. Gulir ke bawah dan pilih 'Add to Home Screen' (Tambahkan ke Layar Utama).\n3. Ketuk 'Add' (Tambah).");
         } else if (deferredPrompt) {
-          // Tampilkan prompt install otomatis (Android/Desktop)
           deferredPrompt.prompt();
           const { outcome } = await deferredPrompt.userChoice;
           if (outcome === 'accepted') {
@@ -148,7 +148,6 @@
           }
           deferredPrompt = null;
         } else {
-          // Fallback jika browser tidak mendukung (misal Firefox di Android)
           alert("Browser Anda tidak mendukung instalasi otomatis. Silakan gunakan menu browser dan pilih 'Tambahkan ke Layar Utama'.");
         }
       };
@@ -169,6 +168,7 @@
     };
 
     async function loadSettings() {
+      // Load Profil
       const meRes = await api("/auth/me");
       if (meRes) {
         const me = await meRes.json();
@@ -177,15 +177,21 @@
         document.getElementById("user-phone").textContent = me.phone ? `HP: ${me.phone}` : "HP: Belum diatur";
       }
 
+      // Load Tambak & Alat
       const farmRes = await api("/farms");
       if (farmRes) {
         const farms = await farmRes.json();
-        const el = document.getElementById("farm-list");
+        const farmEl = document.getElementById("farm-list");
+        const deviceEl = document.getElementById("device-list");
+        
         if (!farms.length) {
-          el.innerHTML = `<p class="muted" style="text-align: left;">Belum ada tambak yang terdaftar.</p>`;
+          farmEl.innerHTML = `<p class="muted" style="text-align: left;">Belum ada tambak yang terdaftar.</p>`;
+          deviceEl.innerHTML = `<p class="muted" style="text-align: left;">Belum ada alat yang terpasang.</p>`;
           return;
         }
-        el.innerHTML = farms.map(f => `
+
+        // Render Daftar Tambak
+        farmEl.innerHTML = farms.map(f => `
           <div class="list-item">
             <div>
               <div class="item-title"><i class="fa-solid fa-water" style="color: var(--cyan);"></i> ${f.name}</div>
@@ -194,6 +200,33 @@
             <span class="badge ok">${f.role}</span>
           </div>
         `).join("");
+
+        // Ambil & Render Daftar Alat dari semua tambak
+        let allDevices = [];
+        for (const f of farms) {
+          const devRes = await api(`/devices?farm_id=${f.id}`);
+          if (devRes) {
+            const devs = await devRes.json();
+            devs.forEach(d => allDevices.push({ ...d, farm_name: f.name }));
+          }
+        }
+
+        if (!allDevices.length) {
+          deviceEl.innerHTML = `<p class="muted" style="text-align: left;">Belum ada alat yang terpasang.</p>`;
+        } else {
+          deviceEl.innerHTML = allDevices.map(d => `
+            <div class="list-item">
+              <div>
+                <div class="item-title">
+                  <span class="dot ${d.status === 'online' ? 'online' : 'offline'}"></span>
+                  ${d.name || d.serial}
+                </div>
+                <div class="item-sub">${d.serial} · ${d.farm_name}</div>
+              </div>
+              <span class="badge ${d.status === 'online' ? 'ok' : ''}">${d.status}</span>
+            </div>
+          `).join("");
+        }
       }
     }
 
